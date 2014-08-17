@@ -1,0 +1,206 @@
+---
+title: "Activity Monitoring"
+output: html_document
+---
+## Introduction to Exploratory Analysis of Activity Monitoring Data
+
+The data was obtained from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+
+The variables included in this dataset are:
+
+.steps: Number of steps taking in a 5-minute interval
+.date: The date on which the measurement was taken
+.interval: Identifier for the 5-minute interval in which measurement was taken
+
+## Loading and proprocessing the data
+
+The steps variable NAs were removed in this set.
+
+
+```r
+activity_data<-read.csv("activity.csv")
+good<-complete.cases(activity_data)
+activityData<-activity_data[good,]
+## Shows number of NAs
+summary(activity_data)
+```
+
+```
+##      steps               date          interval   
+##  Min.   :  0.0   2012-10-01:  288   Min.   :   0  
+##  1st Qu.:  0.0   2012-10-02:  288   1st Qu.: 589  
+##  Median :  0.0   2012-10-03:  288   Median :1178  
+##  Mean   : 37.4   2012-10-04:  288   Mean   :1178  
+##  3rd Qu.: 12.0   2012-10-05:  288   3rd Qu.:1766  
+##  Max.   :806.0   2012-10-06:  288   Max.   :2355  
+##  NA's   :2304    (Other)   :15840
+```
+
+## What is mean total number of steps taken per day?
+
+The total steps per day are calculated and presented in a histogram. 
+The mean and median for the total steps per day are shown after removing NAs.
+
+
+```r
+stepsSum<-tapply(activityData$steps, activityData$date, sum)
+goodSum<-is.na(stepsSum)
+totSum<-stepsSum[!goodSum]
+hist(totSum, xlab="Total Sum of Steps", col="blue", main="Total Sum of Steps")
+```
+
+![plot of chunk totalSteps](figure/totalSteps.png) 
+
+```r
+totalMean<-mean(totSum)
+totalMedian<-median(totSum)
+print(totalMean)
+```
+
+```
+## [1] 10766
+```
+
+```r
+print(totalMedian)
+```
+
+```
+## [1] 10765
+```
+
+## What is the average daily activity pattern?
+
+A time series plot of the 5-minute interval (x-axis) and the average number of steps taken, 
+averaged across all days (y-axis) is provided. The code for the calculations, including
+the 5 minute interval for the maximum mean number of steps is presented.
+
+
+```r
+stepsIntervalMean<-tapply(activityData$steps, activityData$interval, mean, simplify=TRUE)
+intervals<-as.numeric(names(stepsIntervalMean))
+plot(intervals, stepsIntervalMean, type="l", xlab="5-Minutes Intervals", ylab="Steps Means", 
+     main="Steps Means by 5-Minute Interval")
+```
+
+![plot of chunk IntervalsStepsMeans](figure/IntervalsStepsMeans.png) 
+
+```r
+maxIntervalMean<-subset(stepsIntervalMean, stepsIntervalMean==max(stepsIntervalMean))
+print("The 5-Minute interval for the maximum steps mean is")
+```
+
+```
+## [1] "The 5-Minute interval for the maximum steps mean is"
+```
+
+```r
+print(maxIntervalMean)
+```
+
+```
+##   835 
+## 206.2
+```
+
+## Imputing missing values strategy
+
+A second data set is prepared imputing missing values. The daily steps mean and the 5-Minutes
+interval means were considered. The 5-Minutes interval means were selected for imputing as the
+data reflects an interval pattern as opposed to the daily mean that appears to be random.
+
+
+```r
+stepMean<-tapply(activityData$steps, activityData$date, mean)
+goodMean<-is.na(stepMean)
+stepsMean<-stepMean[!goodMean]
+activityDates<-as.Date(names(stepsMean), "%Y-%m-%d")
+plot(activityDates, stepsMean, type="l", xlab="Dates", ylab="Total Steps Means", main="Total Steps Means per Day")
+```
+
+![plot of chunk Imputing](figure/Imputing.png) 
+
+```r
+## No pattern observed. 5-Minutes Interval means to be used for imputing.
+new_activity_data<-activity_data
+for (i in seq_len(nrow(new_activity_data))){
+  x<-is.na(activity_data$steps[i])
+  if (x==TRUE) {
+    for (j in 1:288){
+      if (activity_data$interval[i]==intervals[j]){   
+        new_activity_data$steps[i]<-stepsIntervalMean[j]
+      }
+    }
+  }   
+}
+summary(new_activity_data)
+```
+
+```
+##      steps               date          interval   
+##  Min.   :  0.0   2012-10-01:  288   Min.   :   0  
+##  1st Qu.:  0.0   2012-10-02:  288   1st Qu.: 589  
+##  Median :  0.0   2012-10-03:  288   Median :1178  
+##  Mean   : 37.4   2012-10-04:  288   Mean   :1178  
+##  3rd Qu.: 27.0   2012-10-05:  288   3rd Qu.:1766  
+##  Max.   :806.0   2012-10-06:  288   Max.   :2355  
+##                  (Other)   :15840
+```
+
+## What is mean total number of steps taken per day using the imputed data?
+
+The total number of steps data with the new imputed data is presented. No significant differences
+were observed. Increased frequency toward the center values is observed. Small change in the median
+result was observed as follows.
+
+
+```r
+stepsSum2<-tapply(new_activity_data$steps, new_activity_data$date, sum)
+hist(stepsSum2, xlab="Total Sum of Steps", col="red", main="Total Sum of Steps")
+```
+
+![plot of chunk totalSteps2](figure/totalSteps2.png) 
+
+```r
+totalMean2<-mean(stepsSum2)
+totalMedian2<-median(stepsSum2)
+print(totalMean2)
+```
+
+```
+## [1] 10766
+```
+
+```r
+print(totalMedian2)
+```
+
+```
+## [1] 10766
+```
+## Are there differences in activity patterns between weekdays and weekends?
+
+The total steps means are presented by day and by week period. Less variability is observed
+during weekends.
+
+
+```r
+weekday<-c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
+sum2Data<-data.frame(stepsSum2)
+sum2Data$Date<-as.Date(rownames(sum2Data), "%Y-%m-%d")
+for (i in seq_len(nrow(sum2Data))){
+  z<-weekdays(sum2Data$Date[i])
+  ifelse(z %in% weekday, sum2Data$weekdays[i]<-"weekday",
+         sum2Data$weekdays[i]<-"weekend") 
+}
+library(ggplot2)
+sum2Data$stepsSum2<-as.numeric(sum2Data$stepsSum2)
+sum2Data=transform(sum2Data, sum2Data$weekdays<-factor(sum2Data$weekdays))
+qplot(Date, stepsSum2, data=sum2Data, facets=weekdays~., geom=c("line"), 
+      xlab="Dates", ylab="Total Steps Means")
+```
+
+![plot of chunk weekdayPattern](figure/weekdayPattern.png) 
+
+
+
